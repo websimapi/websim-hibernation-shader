@@ -65,7 +65,6 @@ class HibernationShader {
             float fbm(vec2 p) {
                 float value = 0.0;
                 float amplitude = 0.5;
-                float frequency = 0.0;
                 
                 for (int i = 0; i < 5; i++) {
                     value += amplitude * smoothNoise(p);
@@ -123,19 +122,23 @@ class HibernationShader {
             }
         `;
 
-        this.material = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uMouse: { value: new THREE.Vector2(0.5, 0.5) },
-                uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
-            },
-            vertexShader,
-            fragmentShader
-        });
+        try {
+            this.material = new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uMouse: { value: new THREE.Vector2(0.5, 0.5) },
+                    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+                },
+                vertexShader,
+                fragmentShader
+            });
 
-        const geometry = new THREE.PlaneGeometry(2, 2);
-        const mesh = new THREE.Mesh(geometry, this.material);
-        this.scene.add(mesh);
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            const mesh = new THREE.Mesh(geometry, this.material);
+            this.scene.add(mesh);
+        } catch (error) {
+            console.error('Shader compilation error:', error);
+        }
     }
 
     bindEvents() {
@@ -151,7 +154,9 @@ class HibernationShader {
     handleMouseMove(e) {
         this.mouse.x = e.clientX / window.innerWidth;
         this.mouse.y = 1.0 - (e.clientY / window.innerHeight);
-        this.material.uniforms.uMouse.value = this.mouse;
+        if (this.material && this.material.uniforms) {
+            this.material.uniforms.uMouse.value = this.mouse;
+        }
         
         if (this.isAsleep) {
             this.wake();
@@ -163,7 +168,9 @@ class HibernationShader {
             const touch = e.touches[0];
             this.mouse.x = touch.clientX / window.innerWidth;
             this.mouse.y = 1.0 - (touch.clientY / window.innerHeight);
-            this.material.uniforms.uMouse.value = this.mouse;
+            if (this.material && this.material.uniforms) {
+                this.material.uniforms.uMouse.value = this.mouse;
+            }
             this.wake();
         }
     }
@@ -180,22 +187,36 @@ class HibernationShader {
     }
 
     resize() {
+        if (!this.renderer) return;
+        
         const width = window.innerWidth;
         const height = window.innerHeight;
         
         this.renderer.setSize(width, height);
-        this.material.uniforms.uResolution.value.set(width, height);
+        if (this.material && this.material.uniforms && this.material.uniforms.uResolution) {
+            this.material.uniforms.uResolution.value.set(width, height);
+        }
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
         
+        if (!this.renderer || !this.scene || !this.camera) return;
+        
         this.time += 0.01;
-        this.material.uniforms.uTime.value = this.time;
+        if (this.material && this.material.uniforms) {
+            this.material.uniforms.uTime.value = this.time;
+        }
         
         this.renderer.render(this.scene, this.camera);
     }
 }
 
-new HibernationShader();
-
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        new HibernationShader();
+    });
+} else {
+    new HibernationShader();
+}
